@@ -1,6 +1,6 @@
 
 # The name of the source files
-SOURCES = matrix.c ansi.c sleep.c
+SOURCES = matrix.c ansi.c util.c
 
 # The name of the executable
 EXE = results
@@ -42,6 +42,6 @@ clean:
 	-rm -f $(OBJECTS)  # Remove the object files
 
 # Finally we need to tell "make" what source and header file each object file depends on
-matrix.o: matrix.c ansi.h sleep.h
+matrix.o: matrix.c ansi.h util.h
 ansi.o: ansi.c ansi.h
-sleep.o: sleep.c sleep.h
+util.o: util.c util.h

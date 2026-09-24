@@ -1,13 +1,11 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <sys/ioctl.h>
-#include <time.h>
 #include <sys/time.h>
 
 #include "ansi.h"
-#include "sleep.h"
+#include "util.h"
 
 typedef struct drop {
 	int x;
@@ -18,57 +16,40 @@ typedef struct drop {
 int randomDropY (int height);
 int randomDropTailLength (int height);
 
-void getDimensions (int* width, int* height);
 drop* innitializeDrops (int width, int height);
-void displayDrops (drop* drops, int width, int height);
+void displayDrops (drop* drops, int width, int height, int red, int green, int blue, int showFPS);
 void updateDrops (drop* drops, int width, int height);
+void displayFPS (struct timeval* then, struct timeval* now);
 int maxInt (int a, int b);
 
 const int maxWidth = 500;
 
-int red = 0;
-int green = 0;
-int blue = 0;
-
 int main (int argc, char *argv[]) {
 
-	background(0, 0, 0);
+	int red = 0, green = 0, blue = 0;
+	getRGBFromInput(argc, argv, &red, &green, &blue);
 
-	if (argc > 1) {
-		if (strcmp(argv[1], "green") == 0) {
-			green = 1;
-		} else if (strcmp(argv[1], "red") == 0) {
-			red = 1;
-		} else if (strcmp(argv[1], "blue") == 0) {
-			blue = 1;
-		}
-	} else {
-		green = 1;
-	}
-
-	clear();
-	
-	int width;
-	int height;
-	
+	int width, height;
 	getDimensions(&width, &height);
 
-	drop* drops = innitializeDrops(width, height);
+	int sleepTime;
+	getSleepTimeFromInput(argc, argv, &sleepTime);
 
-	int sleepTime = 100;
-	if (argc > 2) {
-		long long res = strtonum(argv[2], 0, 1000, NULL);
-		if (res >= 10 && res <= 1000) {
-			sleepTime = res;
-		}
-	}
+	int showFPS = 0;
+	getShowFPSFromInput(argc, argv, &showFPS);
+
+	drop* drops = innitializeDrops(width, height);
 	
 	struct timeval then, now;
-
 	gettimeofday(&then, NULL);
 
+	background(0, 0, 0);
+	clear();
+
 	while (1) {
+		
 		hideCursor();
+		
 		getDimensions(&width, &height);
 
 		updateDrops(drops, width, height);
@@ -76,14 +57,10 @@ int main (int argc, char *argv[]) {
 		// So that we overwrite what was already on the screen
 		setCursorPos(1, 1);
 
-		gettimeofday(&now, NULL);
-		
-		float timeElapsed = (now.tv_sec - then.tv_sec) * 1000 + (now.tv_usec - then.tv_usec)/1000;
+		if (showFPS) 
+			displayFPS(&then, &now);
 
-		printf("\e[m%6.3f", timeElapsed);
-		then = now;
-		
-		displayDrops(drops, width, height);
+		displayDrops(drops, width, height, red, green, blue, showFPS);
 
 		msleep(sleepTime);
 	}
@@ -105,12 +82,13 @@ int randomDropTrailLength (int height) {
 	return 4 + rand() % (height);
 }
 
-void getDimensions (int* width, int* height) {
-	struct ttysize ts;
-    ioctl(0, TIOCGSIZE, &ts);
+void displayFPS (struct timeval* then, struct timeval* now) {
+	gettimeofday(now, NULL);
+		
+	float timeElapsed = (now->tv_sec - then->tv_sec) * 1000 + (now->tv_usec - then->tv_usec)/1000;
 
-    *height = ts.ts_lines;
-    *width = ts.ts_cols;
+	printf("\e[m%6.3f", timeElapsed);
+	*then = *now;
 }
 
 drop* innitializeDrops (int width, int height) {
@@ -137,7 +115,7 @@ void updateDrops (drop* drops, int width, int height) {
 	}
 }
 
-void colorText (int y, drop drop) {
+void colorText (int y, drop drop, int red, int green, int blue) {
 	if (y == drop.y - 1) {
 		foreground(215 + red * 40, 215 + green * 40, 215 + blue * 40);
 	} else {
@@ -148,17 +126,17 @@ void colorText (int y, drop drop) {
 	}
 }
 
-void displayDrops (drop* drops, int width, int height) {
+void displayDrops (drop* drops, int width, int height, int red, int green, int blue, int showFPS) {
 
 	for (int y = 0; y < height; y ++) {
 		for (int x = 0; x < minInt(width, maxWidth); x ++) {
 
-			if (y == 0 && x <= 7) {
+			if (showFPS && y == 0 && x <= 7) {
 				continue;
 			}
 
 			if (y < drops[x].y && y >= drops[x].y - drops[x].trailLength) {
-				colorText(y, drops[x]);
+				colorText(y, drops[x], red, green, blue);
 				fputs(randomChar(), stdout);
 			}
 			else {
